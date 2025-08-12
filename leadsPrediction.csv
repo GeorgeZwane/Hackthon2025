@@ -1,0 +1,109 @@
+import pandas as pd
+from sklearn import preprocessing, svm
+import numpy as np
+from datetime import datetime
+from google.colab import drive
+from sklearn.model_selection import train_test_split, KFold, cross_val_score, cross_validate, GridSearchCV
+from sklearn.utils import resample
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.naive_bayes import GaussianNB
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import roc_curve, auc, confusion_matrix, classification_report
+
+# Mount Google Drive
+drive.mount('/content/drive')
+pd.set_option('display.max_columns', 50)
+pd.set_option('display.float_format', lambda x: '%.3f' % x)
+
+df = pd.read_csv("/content/drive/MyDrive/MachineLearning/compas-scores.csv")
+# df_debug = pd.read_csv("/content/drive/MyDrive/MachineLearning/compas-scores.csv") 
+df.head(10)
+
+df.shape
+
+df.size
+
+df.info()
+
+df.is_recid.value_counts()
+
+for attribute in df.columns:
+    if df[attribute].dtype == object:
+        df[attribute] = df[attribute].astype('category')
+df.info()
+
+df.describe().T
+
+df.describe(include = 'category').T
+
+df['juv_misd_count'].value_counts(normalize=True).head(20)
+
+df['juv_fel_count'].value_counts(normalize=True)
+
+df['priors_count'].value_counts(normalize=True).head(20)
+
+numeric_cols_vector = ['days_b_screening_arrest', 'c_days_from_compas', 
+                       'v_decile_score', 'age', 'juv_fel_count', 'decile_score', 
+                       'juv_misd_count', 'juv_other_count', 'priors_count', 'is_recid']
+numeric_cols_df = df[numeric_cols_vector]
+numeric_cols_df.info()
+
+plt.style.use('fivethirtyeight')
+# _: trick to avoid useless text printed
+_ = numeric_cols_df.hist(figsize=(25,15), bins=30)
+
+categorical_to_plot = ['sex', 'age_cat', 'race', 'c_charge_degree', 
+                'r_charge_degree', 'score_text', 'v_score_text',
+                'vr_charge_degree']
+
+for category in categorical_to_plot:
+  counts = df[category].value_counts()
+  counts.plot(kind = 'bar', figsize = (20,10)) 
+  plt.ylabel('count')
+  plt.xlabel(category)
+  plt.title(f"Histogram of {category}")
+  plt.show()
+
+  col_dates_to_plot = ['compas_screening_date', 'c_offense_date', 'c_arrest_date',
+                    'vr_offense_date']
+
+for c in df.columns:
+  if c in col_dates_to_plot:
+    c_counts = df[c].value_counts()
+    date_count_df = pd.DataFrame({'date': c_counts.index, 'count': c_counts.values})
+    date_count_df['date'] = pd.to_datetime(date_count_df['date'], 
+                                             format='%Y-%m-%d')
+    date_count_df.set_index(['date'], inplace=True)
+    date_count_df.plot()
+
+df_is_recid = df[df['is_recid'] != -1]
+sns.histplot(x=df_is_recid['priors_count'], hue='is_recid', kde=1, data=df_is_recid, binwidth=0.5)
+plt.xlabel("Number of priors")
+plt.xlim(0 , 20)
+plt.ylim(0 , 3000)
+plt.show()
+
+df_is_recid = df[df['is_recid'] != -1]
+sns.histplot(x=df_is_recid['juv_fel_count'], hue='is_recid', data=df_is_recid, kde=1, binwidth=0.5)
+plt.xlabel("Number of juvenile felonies")
+plt.xlim(0 , 6)
+plt.ylim(0 , 5000)
+plt.show()
+
+df_is_recid = df[df['is_recid'] != -1]
+sns.countplot(x=df_is_recid['sex'], hue='is_recid', data=df_is_recid)
+plt.xticks(rotation=45)
+plt.show()
+
+df_is_recid = df[df['is_recid'] != -1]
+sns.countplot(x=df_is_recid['c_charge_degree'], hue='is_recid', data=df_is_recid)
+plt.xlabel("Felony, misdemeanor or other crime type")
+plt.show()
+
+numeric_cols_df.info()
+
+numeric_cols_df.plot(kind='box', subplots=True, sharex=False, sharey=False, notch=True, patch_artist=True, figsize=(20,10))
+plt.show()
